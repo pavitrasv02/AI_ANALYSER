@@ -1,27 +1,21 @@
 from pathlib import Path
-
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.routers.ai_router import router as ai_router
 
 # Load backend/.env
 env_path = Path(__file__).resolve().parents[1] / ".env"
 load_dotenv(env_path)
-from pathlib import Path
-from dotenv import load_dotenv
-import os
 
-env_path = Path(__file__).resolve().parents[1] / ".env"
-print("Loading .env from:", env_path)
-load_dotenv(env_path)
-print("MAIN:", os.getenv("GROQ_API_KEY"))
 app = FastAPI(title="AIVOA Complaint Management")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +23,15 @@ app.add_middleware(
 
 app.include_router(ai_router)
 
-@app.get("/")
-def root():
-    return {"message": "Backend is running"}
+frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+
+if frontend_dist.exists():
+    app.mount(
+        "/assets",
+        StaticFiles(directory=frontend_dist / "assets"),
+        name="assets",
+    )
+
+    @app.get("/{full_path:path}")
+    async def serve_react(full_path: str):
+        return FileResponse(frontend_dist / "index.html")
